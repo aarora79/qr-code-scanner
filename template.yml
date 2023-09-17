@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Lambda and API Gateway
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Required Parameters
+        Parameters:
+          - AppName    
+          - BucketName      
+          - LambdaFunctionName
+          - APIGatewayName
+    ParameterLabels:      
+      AppName:
+        default: Name of the overall application
+      BucketName:
+        default: Name of the bucket for the Lambda code and data
+      LambdaFunctionName:
+        default: Lambda function name
+      APIGatewayName:
+        default: API gateway name
+      
+Parameters:
+  AppName:
+    Default: conference-participants-qr-code-scanner
+    Type: String
+    AllowedValues: [conference-participants-qr-code-scanner]
+    Description: Name of the overall application.
+  BucketName:
+    Default: qr-code-data
+    Type: String
+    Description: Name of the bucket for the Lambda code and data
+  LambdaFunctionName:
+    Default: QRCodeScanner
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+'
+    Description: Name of the Lambda function for LLM Apps
+  APIGatewayName:
+    Default: QRCodeScannerAPIGW
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+'
+    Description: Name of the Lambda function 
+  ApiStageName:
+    Description: The API Gateway API stage name
+    Type: String
+    Default: prod
+    
+Resources:
+  APIGateway:
+      Type: "AWS::ApiGateway::RestApi"
+      Properties:
+        Name: !Sub ${APIGatewayName}
+        Description: "QRCodeScannerApp API Gateway"
+
+  ProxyResource:
+    Type: "AWS::ApiGateway::Resource"
+    Properties:
+      ParentId: !GetAtt APIGateway.RootResourceId
+      RestApiId: !Ref APIGateway
+      PathPart: '{proxy+}'
+
+  APIGatewayRootMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: ANY
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        IntegrationResponses:
+          -
+            StatusCode: 200
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations"
+          - lambdaArn: !GetAtt "QRCodeScannerFunction.Arn"
+      ResourceId: !Ref ProxyResource
+      RestApiId: !Ref "APIGateway"
+
+
+  APIGatewayDeployment:
+    Type: "AWS::ApiGateway::Deployment"
+    DependsOn:
+      - "APIGatewayRootMethod"
+    Properties:
+      RestApiId: !Ref "APIGateway"
+      StageName: !Ref ApiStageName
+
+  QRCodeScannerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Description: Lambda function for tracking participant names.
+      Runtime: python3.9
+      Code:
+        S3Bucket: qr-code-data
+        S3Key: function.zip
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt LambdaIAMRole.Arn
+      Tags: 
+        -
+          Key: Project
+          Value: !Ref AppName
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          BUCKET: !Ref BucketName
+
+  LambdaApiGatewayInvoke:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt "QRCodeScannerFunction.Arn"
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${APIGateway}/*/*/*"
+
+  LambdaIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Effect: "Allow"
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*"
+          PolicyName: "lambda"
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Logging
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Effect: "Allow"
+                Resource: "*"
+                
+          PolicyName: "lambdaVPC"
+      
+
+  lambdaLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaFunctionName}"
+      RetentionInDays: 90
+
+Outputs:
+  
+  APIEndpoint:
+    Description: "API (prod) stage endpoint"
+    Value: !Sub "https://${APIGateway}.execute-api.${AWS::Region}.amazonaws.com/${ApiStageName}/"

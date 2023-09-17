@@ -1,2 +1,3 @@
-# qr-code-scanner
-Lambda function for collecting data from a QR code and storing it in S3
+# QR code scanner with AWS Lambda
+
+Lambda function for collecting data from a QR code and storing it in S3.

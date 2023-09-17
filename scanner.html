@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR code scanner for AI/ML Symposium, 21 September 2023</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+
+        select {
+            height: 40px;
+        }
+
+        textarea {
+            height: 150px;
+        }
+
+        input[type="submit"] {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI/ML Symposium, 21 September 2023</h1>
+    
+    <form action="./handler" method="GET">
+        <label for="name">Participant:</label>
+        <pre>__PARTICIPANT__</pre>
+        <input type="hidden" name="source" value="form">
+        <input type="hidden" name="firstname" value="__FIRSTNAME__">
+        <input type="hidden" name="lastname" value="__LASTNAME__">
+        <input type="hidden" name="company" value="__COMPANY__">
+        <input type="hidden" name="title" value="__TITLE__">
+        <input type="hidden" name="email" value="__EMAIL__">
+        
+        <label for="table">Table:</label>
+        <select id="table" name="table">
+            <option value = "Marketing"><h4>Marketing</h4></option>
+            <option value="Product">Product</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Sales">Sales</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <label for="notes">Notes:</label>
+        <textarea id="notes" name="notes" rows="4" cols="50"></textarea>
+
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
